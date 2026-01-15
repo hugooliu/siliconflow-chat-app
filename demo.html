@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>硅基流动AI问答 - 演示版</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 90vh;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex: 1;
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .header .subtitle {
+            font-size: 0.875rem;
+            opacity: 0.9;
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .model-select {
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            font-size: 0.875rem;
+            cursor: pointer;
+            outline: none;
+            min-width: 200px;
+        }
+
+        .model-select option {
+            background: #667eea;
+            color: white;
+        }
+
+        .new-chat-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+
+        .new-chat-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .new-chat-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+
+        .message {
+            display: flex;
+            margin-bottom: 20px;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.user {
+            justify-content: flex-end;
+        }
+
+        .message.assistant {
+            justify-content: flex-start;
+        }
+
+        .message-content {
+            max-width: 80%;
+            padding: 12px 16px;
+            border-radius: 16px;
+            position: relative;
+        }
+
+        .message.user .message-content {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.assistant .message-content {
+            background: white;
+            color: #333;
+            border: 1px solid #e0e0e0;
+            border-bottom-left-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .message-time {
+            font-size: 0.75rem;
+            margin-top: 8px;
+            opacity: 0.7;
+        }
+
+        .message.user .message-time {
+            text-align: right;
+        }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #999;
+            text-align: center;
+        }
+
+        .empty-state svg {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .empty-state h2 {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+            color: #666;
+        }
+
+        .empty-state p {
+            font-size: 1rem;
+        }
+
+        .status-bar {
+            padding: 12px 20px;
+            background: white;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #4caf50;
+        }
+
+        .status-indicator.loading {
+            background: #2196f3;
+            animation: pulse 1.5s infinite;
+        }
+
+        .status-indicator.error {
+            background: #f44336;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .status-text {
+            font-size: 0.875rem;
+            color: #666;
+        }
+
+        .input-area {
+            padding: 20px;
+            background: white;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .input-container {
+            display: flex;
+            gap: 12px;
+        }
+
+        .input-field {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .input-field:focus {
+            border-color: #667eea;
+        }
+
+        .input-field:disabled {
+            background: #f5f5f5;
+            cursor: not-allowed;
+        }
+
+        .send-btn {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .send-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .send-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .char-count {
+            font-size: 0.75rem;
+            color: #999;
+            margin-top: 8px;
+            text-align: right;
+        }
+
+        .error-message {
+            background: #ffebee;
+            color: #c62828;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            display: none;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                height: 100vh;
+                border-radius: 0;
+            }
+
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .header-controls {
+                width: 100%;
+                flex-wrap: wrap;
+            }
+
+            .model-select {
+                flex: 1;
+                min-width: 150px;
+            }
+
+            .header h1 {
+                font-size: 1.25rem;
+            }
+
+            .message-content {
+                max-width: 90%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-left">
+                <div>
+                    <h1>硅基流动AI问答</h1>
+                    <div class="subtitle">基于硅基流动AI平台</div>
+                </div>
+            </div>
+            <div class="header-controls">
+                <select class="model-select" id="modelSelect">
+                    <option value="deepseek-ai/DeepSeek-V3">DeepSeek-V3 (推荐)</option>
+                    <option value="deepseek-ai/DeepSeek-R1">DeepSeek-R1 (推理)</option>
+                    <option value="deepseek-ai/DeepSeek-V2.5">DeepSeek-V2.5</option>
+                    <option value="Qwen/Qwen2.5-7B-Instruct">Qwen2.5-7B</option>
+                    <option value="Qwen/Qwen2.5-72B-Instruct">Qwen2.5-72B</option>
+                    <option value="meta-llama/Llama-3.1-8B-Instruct">Llama-3.1-8B</option>
+                    <option value="meta-llama/Llama-3.1-70B-Instruct">Llama-3.1-70B</option>
+                </select>
+                <button class="new-chat-btn" id="newChatBtn" disabled>新对话</button>
+            </div>
+        </div>
+
+        <div class="messages" id="messages">
+            <div class="empty-state">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/>
+                </svg>
+                <h2>开始与AI对话吧</h2>
+                <p>选择模型并输入您的问题,我会尽力为您解答</p>
+            </div>
+        </div>
+
+        <div class="status-bar">
+            <div class="status-indicator" id="statusIndicator"></div>
+            <span class="status-text" id="statusText">系统正常</span>
+        </div>
+
+        <div class="input-area">
+            <div class="error-message" id="errorMessage"></div>
+            <div class="input-container">
+                <input 
+                    type="text" 
+                    class="input-field" 
+                    id="inputField" 
+                    placeholder="输入您的问题..."
+                    maxlength="2000"
+                >
+                <button class="send-btn" id="sendBtn" disabled>发送</button>
+            </div>
+            <div class="char-count" id="charCount">0/2000</div>
+        </div>
+    </div>
+
+    <script>
+        const API_KEY = 'sk-jtjlznpthxyxvsgmzmvvjzbdvlatwbhswfymntcbyiijmonw';
+        const API_URL = 'https://api.siliconflow.cn/v1/chat/completions';
+
+        let messages = [];
+        let isLoading = false;
+
+        const messagesContainer = document.getElementById('messages');
+        const inputField = document.getElementById('inputField');
+        const sendBtn = document.getElementById('sendBtn');
+        const newChatBtn = document.getElementById('newChatBtn');
+        const modelSelect = document.getElementById('modelSelect');
+        const statusIndicator = document.getElementById('statusIndicator');
+        const statusText = document.getElementById('statusText');
+        const errorMessage = document.getElementById('errorMessage');
+        const charCount = document.getElementById('charCount');
+
+        function updateStatus(status, text) {
+            statusIndicator.className = 'status-indicator';
+            if (status === 'loading') {
+                statusIndicator.classList.add('loading');
+            } else if (status === 'error') {
+                statusIndicator.classList.add('error');
+            }
+            statusText.textContent = text;
+        }
+
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.classList.add('show');
+            setTimeout(() => {
+                errorMessage.classList.remove('show');
+            }, 5000);
+        }
+
+        function addMessage(role, content) {
+            messages.push({ role, content });
+            
+            const emptyState = messagesContainer.querySelector('.empty-state');
+            if (emptyState) {
+                emptyState.remove();
+            }
+
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            
+            const time = new Date().toLocaleTimeString('zh-CN', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            messageDiv.innerHTML = `
+                <div class="message-content">
+                    <div>${escapeHtml(content)}</div>
+                    <div class="message-time">${time}</div>
+                </div>
+            `;
+
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+            newChatBtn.disabled = false;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        async function sendMessage() {
+            const content = inputField.value.trim();
+            if (!content || isLoading) return;
+
+            isLoading = true;
+            sendBtn.disabled = true;
+            inputField.disabled = true;
+            modelSelect.disabled = true;
+            updateStatus('loading', 'AI正在思考...');
+
+            addMessage('user', content);
+            inputField.value = '';
+            charCount.textContent = '0/2000';
+
+            try {
+                const selectedModel = modelSelect.value;
+                console.log('使用模型:', selectedModel);
+                
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${API_KEY}`
+                    },
+                    body: JSON.stringify({
+                        messages: messages.map(m => ({ role: m.role, content: m.content })),
+                        model: selectedModel,
+                        stream: false
+                    })
+                });
+
+                console.log('响应状态:', response.status, response.statusText);
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('错误响应:', errorText);
+                    
+                    let errorData;
+                    try {
+                        errorData = JSON.parse(errorText);
+                    } catch (e) {
+                        errorData = { error: { message: errorText } };
+                    }
+                    
+                    const errorMessage = errorData.message || errorData.error?.message || errorText || '请求失败';
+                    throw new Error(`API错误 (${response.status}): ${errorMessage}`);
+                }
+
+                const data = await response.json();
+                console.log('成功响应:', data);
+                
+                if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+                    throw new Error('API返回的数据格式不正确');
+                }
+                
+                const assistantMessage = data.choices[0].message.content;
+                
+                addMessage('assistant', assistantMessage);
+                updateStatus('normal', '系统正常');
+            } catch (error) {
+                console.error('完整错误信息:', error);
+                const errorMsg = error.message || '网络错误,请稍后重试';
+                showError(errorMsg);
+                updateStatus('error', '发生错误');
+            } finally {
+                isLoading = false;
+                sendBtn.disabled = false;
+                inputField.disabled = false;
+                modelSelect.disabled = false;
+                inputField.focus();
+            }
+        }
+
+        function newChat() {
+            messages = [];
+            messagesContainer.innerHTML = `
+                <div class="empty-state">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/>
+                    </svg>
+                    <h2>开始与AI对话吧</h2>
+                    <p>选择模型并输入您的问题,我会尽力为您解答</p>
+                </div>
+            `;
+            newChatBtn.disabled = true;
+            updateStatus('normal', '系统正常');
+        }
+
+        inputField.addEventListener('input', () => {
+            const length = inputField.value.length;
+            charCount.textContent = `${length}/2000`;
+            sendBtn.disabled = length === 0 || isLoading;
+        });
+
+        inputField.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        sendBtn.addEventListener('click', sendMessage);
+        newChatBtn.addEventListener('click', newChat);
+
+        inputField.focus();
+    </script>
+</body>
+</html>
